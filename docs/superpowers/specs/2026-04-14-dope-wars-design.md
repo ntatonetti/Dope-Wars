@@ -15,7 +15,7 @@ A dataclass holding all mutable game state:
 | Field | Type | Initial Value | Notes |
 |-------|------|---------------|-------|
 | cash | int | 2,000 | Player's on-hand money |
-| debt | int | 5,500 | Loan shark debt, 10% daily interest |
+| debt | int | 5,500 | Loan shark debt, 10% interest compounded each travel |
 | bank | int | 0 | Safe storage, not subject to mugging |
 | inventory | dict[str, int] | all zeros | Good name -> quantity |
 | capacity | int | 100 | Max total items carried |
