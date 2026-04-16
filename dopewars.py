@@ -195,3 +195,198 @@ def get_amount(prompt: str, max_val: int) -> int | None:
         print(f"Maximum is {max_val}.")
         return None
     return val
+
+
+def run_combat(state: GameState, num_cops: int) -> None:
+    print(f"\nOfficer Hardass and {num_cops} cops are chasing you!")
+    while num_cops > 0 and state.health > 0:
+        print(f"\n Cops: {num_cops}  |  Health: {state.health}")
+        options = ["R"]
+        prompt_parts = ["(R)un"]
+        if state.guns > 0:
+            options.append("F")
+            prompt_parts.append("(F)ight")
+        choice_str = get_choice(" " + " or ".join(prompt_parts) + "? ", options)
+        choice = "run" if choice_str == "R" else "fight"
+        num_cops, escaped, msg = combat_round(state, num_cops, choice)
+        print(f" {msg}")
+        if escaped:
+            return
+    if state.health <= 0:
+        print(" You're dead!")
+
+
+def process_events(state: GameState, events: list[tuple[str, str, int]]) -> None:
+    for etype, msg, data in events:
+        if etype == "cops":
+            run_combat(state, data)
+            if state.health <= 0:
+                return
+        elif etype == "gun_offer":
+            print(f"\n {msg}")
+            if state.cash >= 400:
+                choice = get_choice(" (Y)es or (N)o? ", ["Y", "N"])
+                if choice == "Y":
+                    state.cash -= 400
+                    state.guns += 1
+                    print(" You bought a gun!")
+            else:
+                print(" You can't afford it.")
+        elif etype == "coat_offer":
+            print(f"\n {msg}")
+            if state.cash >= 200:
+                choice = get_choice(" (Y)es or (N)o? ", ["Y", "N"])
+                if choice == "Y":
+                    state.cash -= 200
+                    state.capacity += 10
+                    print(" You bought a trench coat! Carrying capacity increased.")
+            else:
+                print(" You can't afford it.")
+        else:
+            print(f"\n {msg}")
+
+
+def main() -> None:
+    print("\n" + "=" * 50)
+    print("  DOPE WARS")
+    print("  Buy low. Sell high. Don't get killed.")
+    print("=" * 50)
+
+    while True:
+        state = GameState()
+        prices = generate_prices()
+
+        while state.day <= 30 and state.health > 0:
+            display_status(state)
+            display_market(prices, state.inventory)
+
+            action = get_choice(
+                "\n (B)uy, (S)ell, (J)et, (V)isit loan shark, (D)eposit/withdraw? ",
+                ["B", "S", "J", "V", "D"],
+            )
+
+            if action == "B":
+                display_market(prices, state.inventory)
+                good_idx = get_amount("Which good? (number) ", len(GOODS))
+                if good_idx is None:
+                    continue
+                good = list(GOODS.keys())[good_idx - 1]
+                price = prices[good]
+                max_afford = state.cash // price if price > 0 else 0
+                max_carry = state.capacity - sum(state.inventory.values())
+                max_qty = min(max_afford, max_carry)
+                if max_qty <= 0:
+                    print("You can't buy any of that.")
+                    continue
+                qty = get_amount(f"How many {good}? (max {max_qty}) ", max_qty)
+                if qty is None:
+                    continue
+                err = buy(state, good, qty, price)
+                if err:
+                    print(err)
+                else:
+                    print(f"You bought {qty} {good}.")
+
+            elif action == "S":
+                owned = {g: q for g, q in state.inventory.items() if q > 0}
+                if not owned:
+                    print("You don't have anything to sell!")
+                    continue
+                display_market(prices, state.inventory)
+                good_idx = get_amount("Which good? (number) ", len(GOODS))
+                if good_idx is None:
+                    continue
+                good = list(GOODS.keys())[good_idx - 1]
+                if state.inventory[good] <= 0:
+                    print(f"You don't have any {good}.")
+                    continue
+                qty = get_amount(f"How many {good}? (max {state.inventory[good]}) ", state.inventory[good])
+                if qty is None:
+                    continue
+                err = sell(state, good, qty, prices[good])
+                if err:
+                    print(err)
+                else:
+                    print(f"You sold {qty} {good} for ${prices[good] * qty:,}.")
+
+            elif action == "J":
+                destinations = [loc for loc in LOCATIONS if loc != state.current_location]
+                print("\nWhere to?")
+                for i, loc in enumerate(destinations, 1):
+                    print(f" {i}. {loc}")
+                dest_idx = get_amount("? ", len(destinations))
+                if dest_idx is None:
+                    continue
+                state.current_location = destinations[dest_idx - 1]
+                state.day += 1
+                apply_interest(state)
+                prices = generate_prices()
+                events = roll_events(state, prices)
+                process_events(state, events)
+
+            elif action == "V":
+                print(f"\nDebt: ${state.debt:,}")
+                if state.debt == 0:
+                    print("You don't owe anything!")
+                    continue
+                amt = get_amount(f"How much to repay? (max ${min(state.cash, state.debt):,}) ", min(state.cash, state.debt))
+                if amt is None:
+                    continue
+                err = repay_debt(state, amt)
+                if err:
+                    print(err)
+                else:
+                    print(f"You repaid ${amt:,}. Remaining debt: ${state.debt:,}")
+
+            elif action == "D":
+                choice = get_choice(" (D)eposit or (W)ithdraw? ", ["D", "W"])
+                if choice == "D":
+                    if state.cash <= 0:
+                        print("You have no cash to deposit.")
+                        continue
+                    amt = get_amount(f"Deposit how much? (max ${state.cash:,}) ", state.cash)
+                    if amt is None:
+                        continue
+                    err = deposit(state, amt)
+                    if err:
+                        print(err)
+                    else:
+                        print(f"Deposited ${amt:,}.")
+                else:
+                    if state.bank <= 0:
+                        print("Your bank account is empty.")
+                        continue
+                    amt = get_amount(f"Withdraw how much? (max ${state.bank:,}) ", state.bank)
+                    if amt is None:
+                        continue
+                    err = withdraw(state, amt)
+                    if err:
+                        print(err)
+                    else:
+                        print(f"Withdrew ${amt:,}.")
+
+        # Game over
+        score = state.cash + state.bank - state.debt
+        print(f"\n{'=' * 50}")
+        if state.health <= 0:
+            print("  YOU'RE DEAD!")
+        else:
+            print("  GAME OVER — 30 days are up!")
+        print(f"\n  Cash:  ${state.cash:,}")
+        print(f"  Bank:  ${state.bank:,}")
+        print(f"  Debt: -${state.debt:,}")
+        print(f"  {'─' * 20}")
+        print(f"  Score: ${score:,}")
+        print(f"{'=' * 50}")
+
+        again = get_choice("\nPlay again? (Y/N) ", ["Y", "N"])
+        if again == "N":
+            print("Thanks for playing!")
+            break
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nThanks for playing!")
