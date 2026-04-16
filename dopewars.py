@@ -29,3 +29,23 @@ class GameState:
 
 def generate_prices() -> dict[str, int]:
     return {good: random.randint(low, high) for good, (low, high) in GOODS.items()}
+
+
+def buy(state: GameState, good: str, quantity: int, price: int) -> str | None:
+    cost = price * quantity
+    if cost > state.cash:
+        return "You can't afford that!"
+    carried = sum(state.inventory.values())
+    if carried + quantity > state.capacity:
+        return "You can't carry that much!"
+    state.cash -= cost
+    state.inventory[good] += quantity
+    return None
+
+
+def sell(state: GameState, good: str, quantity: int, price: int) -> str | None:
+    if state.inventory[good] < quantity:
+        return "You don't have that many!"
+    state.cash += price * quantity
+    state.inventory[good] -= quantity
+    return None

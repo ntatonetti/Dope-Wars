@@ -1,6 +1,6 @@
 # test_dopewars.py
 import random
-from dopewars import GameState, GOODS, LOCATIONS, generate_prices
+from dopewars import GameState, GOODS, LOCATIONS, generate_prices, buy, sell
 
 
 def test_gamestate_defaults():
@@ -32,3 +32,57 @@ def test_generate_prices_vary_with_seed():
     random.seed(2)
     prices_b = generate_prices()
     assert prices_a != prices_b
+
+
+def test_buy_success():
+    state = GameState()
+    state.cash = 1000
+    err = buy(state, "Ludes", 10, 50)
+    assert err is None
+    assert state.cash == 500
+    assert state.inventory["Ludes"] == 10
+
+
+def test_buy_not_enough_cash():
+    state = GameState()
+    state.cash = 100
+    err = buy(state, "Cocaine", 1, 20000)
+    assert err is not None
+    assert state.cash == 100
+    assert state.inventory["Cocaine"] == 0
+
+
+def test_buy_exceeds_capacity():
+    state = GameState()
+    state.cash = 999999
+    state.inventory["Ludes"] = 95
+    err = buy(state, "Weed", 10, 1)
+    assert err is not None
+    assert state.inventory["Weed"] == 0
+
+
+def test_buy_exactly_fills_capacity():
+    state = GameState()
+    state.cash = 999999
+    state.inventory["Ludes"] = 90
+    err = buy(state, "Weed", 10, 1)
+    assert err is None
+    assert state.inventory["Weed"] == 10
+
+
+def test_sell_success():
+    state = GameState()
+    state.cash = 0
+    state.inventory["Acid"] = 5
+    err = sell(state, "Acid", 3, 2000)
+    assert err is None
+    assert state.cash == 6000
+    assert state.inventory["Acid"] == 2
+
+
+def test_sell_more_than_owned():
+    state = GameState()
+    state.inventory["Weed"] = 2
+    err = sell(state, "Weed", 5, 500)
+    assert err is not None
+    assert state.inventory["Weed"] == 2
