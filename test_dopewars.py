@@ -1,6 +1,7 @@
 # test_dopewars.py
 import random
 from dopewars import GameState, GOODS, LOCATIONS, generate_prices, buy, sell
+from dopewars import deposit, withdraw, repay_debt, apply_interest
 
 
 def test_gamestate_defaults():
@@ -86,3 +87,83 @@ def test_sell_more_than_owned():
     err = sell(state, "Weed", 5, 500)
     assert err is not None
     assert state.inventory["Weed"] == 2
+
+
+def test_deposit_success():
+    state = GameState()
+    state.cash = 1000
+    err = deposit(state, 600)
+    assert err is None
+    assert state.cash == 400
+    assert state.bank == 600
+
+
+def test_deposit_more_than_cash():
+    state = GameState()
+    state.cash = 100
+    err = deposit(state, 200)
+    assert err is not None
+    assert state.cash == 100
+    assert state.bank == 0
+
+
+def test_withdraw_success():
+    state = GameState()
+    state.bank = 500
+    state.cash = 0
+    err = withdraw(state, 300)
+    assert err is None
+    assert state.bank == 200
+    assert state.cash == 300
+
+
+def test_withdraw_more_than_bank():
+    state = GameState()
+    state.bank = 100
+    err = withdraw(state, 200)
+    assert err is not None
+    assert state.bank == 100
+
+
+def test_repay_debt_success():
+    state = GameState()
+    state.cash = 3000
+    state.debt = 5500
+    err = repay_debt(state, 2000)
+    assert err is None
+    assert state.cash == 1000
+    assert state.debt == 3500
+
+
+def test_repay_debt_more_than_owed():
+    state = GameState()
+    state.cash = 10000
+    state.debt = 500
+    err = repay_debt(state, 1000)
+    assert err is None
+    assert state.cash == 9500
+    assert state.debt == 0
+
+
+def test_repay_debt_not_enough_cash():
+    state = GameState()
+    state.cash = 100
+    state.debt = 5500
+    err = repay_debt(state, 200)
+    assert err is not None
+    assert state.cash == 100
+    assert state.debt == 5500
+
+
+def test_apply_interest():
+    state = GameState()
+    state.debt = 1000
+    apply_interest(state)
+    assert state.debt == 1100
+
+
+def test_apply_interest_zero_debt():
+    state = GameState()
+    state.debt = 0
+    apply_interest(state)
+    assert state.debt == 0

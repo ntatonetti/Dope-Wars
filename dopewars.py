@@ -49,3 +49,32 @@ def sell(state: GameState, good: str, quantity: int, price: int) -> str | None:
     state.cash += price * quantity
     state.inventory[good] -= quantity
     return None
+
+
+def deposit(state: GameState, amount: int) -> str | None:
+    if amount > state.cash:
+        return "You don't have that much cash!"
+    state.cash -= amount
+    state.bank += amount
+    return None
+
+
+def withdraw(state: GameState, amount: int) -> str | None:
+    if amount > state.bank:
+        return "You don't have that much in the bank!"
+    state.bank -= amount
+    state.cash += amount
+    return None
+
+
+def repay_debt(state: GameState, amount: int) -> str | None:
+    if amount > state.cash:
+        return "You don't have that much cash!"
+    amount = min(amount, state.debt)
+    state.cash -= amount
+    state.debt -= amount
+    return None
+
+
+def apply_interest(state: GameState) -> None:
+    state.debt = int(state.debt * 1.10)
