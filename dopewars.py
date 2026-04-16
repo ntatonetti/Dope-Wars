@@ -78,3 +78,55 @@ def repay_debt(state: GameState, amount: int) -> str | None:
 
 def apply_interest(state: GameState) -> None:
     state.debt = int(state.debt * 1.10)
+
+
+def roll_events(state: GameState, prices: dict[str, int]) -> list[tuple[str, str, int]]:
+    events = []
+
+    # Price spike (~15% chance) — cheap goods skyrocket
+    if random.random() < 0.15:
+        good = random.choice(["Weed", "Speed", "Ludes"])
+        multiplier = random.randint(4, 8)
+        prices[good] = GOODS[good][1] * multiplier
+        events.append(("price_spike", f"Cops made a bust! {good} prices skyrocket!", 0))
+
+    # Price crash (~15% chance) — expensive goods bottom out
+    if random.random() < 0.15:
+        good = random.choice(["Cocaine", "Heroin", "Acid"])
+        divisor = random.randint(4, 8)
+        prices[good] = GOODS[good][0] // divisor
+        events.append(("price_crash", f"{good} prices have bottomed out!", 0))
+
+    # Find goods (~10% chance)
+    if random.random() < 0.10:
+        good = random.choice(list(GOODS.keys()))
+        amount = random.randint(2, 6)
+        carried = sum(state.inventory.values())
+        space = state.capacity - carried
+        amount = min(amount, space)
+        if amount > 0:
+            state.inventory[good] += amount
+            events.append(("find_goods", f"You find {amount} units of {good} on the ground!", 0))
+
+    # Mugger (~10% chance)
+    if random.random() < 0.10 and state.cash > 0:
+        lost = random.randint(1, max(1, state.cash // 3))
+        state.cash -= lost
+        events.append(("mugger", f"A mugger attacks! You lose ${lost:,}!", 0))
+
+    # Cops (~15% chance, scales with day)
+    if random.random() < 0.15:
+        min_cops = 1 + state.day // 10
+        max_cops = max(min_cops, min(3 + state.day // 5, 8))
+        num_cops = random.randint(min_cops, max_cops)
+        events.append(("cops", f"Officer Hardass and {num_cops} cops are chasing you!", num_cops))
+
+    # Gun offer (~10% chance)
+    if random.random() < 0.10:
+        events.append(("gun_offer", "Would you like to buy a gun for $400?", 400))
+
+    # Trench coat offer (~10% chance)
+    if random.random() < 0.10:
+        events.append(("coat_offer", "Would you like to buy a trench coat for $200?", 200))
+
+    return events

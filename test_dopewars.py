@@ -167,3 +167,112 @@ def test_apply_interest_zero_debt():
     state.debt = 0
     apply_interest(state)
     assert state.debt == 0
+
+
+from dopewars import roll_events
+
+
+def test_roll_events_price_spike():
+    state = GameState()
+    prices = generate_prices()
+    random.seed(0)
+    # Run many times to verify spike behavior when triggered
+    found_spike = False
+    for seed in range(200):
+        random.seed(seed)
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, _data in events:
+            if etype == "price_spike":
+                found_spike = True
+                # Find which good spiked — check it's above normal max
+                for good in ["Weed", "Speed", "Ludes"]:
+                    if good in msg:
+                        assert prices[good] > GOODS[good][1]
+                        break
+    assert found_spike, "No price spike found in 200 seeds"
+
+
+def test_roll_events_price_crash():
+    state = GameState()
+    found_crash = False
+    for seed in range(200):
+        random.seed(seed)
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, _data in events:
+            if etype == "price_crash":
+                found_crash = True
+                for good in ["Cocaine", "Heroin", "Acid"]:
+                    if good in msg:
+                        assert prices[good] < GOODS[good][0]
+                        break
+    assert found_crash, "No price crash found in 200 seeds"
+
+
+def test_roll_events_find_goods():
+    found = False
+    for seed in range(200):
+        random.seed(seed)
+        state = GameState()
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, _data in events:
+            if etype == "find_goods":
+                found = True
+                assert sum(state.inventory.values()) > 0
+    assert found, "No find-goods event in 200 seeds"
+
+
+def test_roll_events_mugger():
+    found = False
+    for seed in range(200):
+        random.seed(seed)
+        state = GameState()
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, _data in events:
+            if etype == "mugger":
+                found = True
+                assert state.cash < 2000
+    assert found, "No mugger event in 200 seeds"
+
+
+def test_roll_events_cops():
+    found = False
+    for seed in range(200):
+        random.seed(seed)
+        state = GameState()
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, data in events:
+            if etype == "cops":
+                found = True
+                assert data >= 1
+    assert found, "No cops event in 200 seeds"
+
+
+def test_roll_events_gun_offer():
+    found = False
+    for seed in range(200):
+        random.seed(seed)
+        state = GameState()
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, _data in events:
+            if etype == "gun_offer":
+                found = True
+    assert found, "No gun offer in 200 seeds"
+
+
+def test_roll_events_coat_offer():
+    found = False
+    for seed in range(200):
+        random.seed(seed)
+        state = GameState()
+        prices = generate_prices()
+        events = roll_events(state, prices)
+        for etype, msg, _data in events:
+            if etype == "coat_offer":
+                found = True
+    assert found, "No coat offer in 200 seeds"
