@@ -153,3 +153,45 @@ def combat_round(state: GameState, num_cops: int, choice: str) -> tuple[int, boo
         return num_cops, False, "You killed the last cop!"
 
     return num_cops, False, ""
+
+
+def display_status(state: GameState) -> None:
+    print(f"\n{'=' * 50}")
+    print(f" Day: {state.day}/30  |  {state.current_location}")
+    print(f" Cash: ${state.cash:,}  |  Debt: ${state.debt:,}  |  Bank: ${state.bank:,}")
+    print(f" Guns: {state.guns}  |  Health: {state.health}  |  Space: {state.capacity - sum(state.inventory.values())}")
+    print(f"{'=' * 50}")
+
+
+def display_market(prices: dict[str, int], inventory: dict[str, int]) -> None:
+    print(f"\n{'Goods':<12} {'Price':>10} {'You Have':>10}")
+    print("-" * 34)
+    for i, (good, price) in enumerate(prices.items(), 1):
+        owned = inventory[good]
+        print(f" {i}. {good:<8} ${price:>8,} {owned:>10}")
+
+
+def get_choice(prompt: str, valid: list[str]) -> str:
+    while True:
+        raw = input(prompt).strip().upper()
+        if raw in valid:
+            return raw
+        print("Invalid choice. Try again.")
+
+
+def get_amount(prompt: str, max_val: int) -> int | None:
+    raw = input(prompt).strip()
+    if not raw:
+        return None
+    try:
+        val = int(raw)
+    except ValueError:
+        print("Enter a number.")
+        return None
+    if val <= 0:
+        print("Must be a positive number.")
+        return None
+    if val > max_val:
+        print(f"Maximum is {max_val}.")
+        return None
+    return val
