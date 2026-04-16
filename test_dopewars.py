@@ -276,3 +276,66 @@ def test_roll_events_coat_offer():
             if etype == "coat_offer":
                 found = True
     assert found, "No coat offer in 200 seeds"
+
+
+from dopewars import combat_round
+
+
+def test_combat_round_fight_kills_cop():
+    random.seed(42)
+    state = GameState()
+    state.guns = 1
+    initial_health = state.health
+    remaining, escaped, msg = combat_round(state, 3, "fight")
+    assert remaining == 2
+    assert not escaped
+    assert state.health < initial_health  # remaining cops shoot back
+
+
+def test_combat_round_fight_last_cop():
+    random.seed(42)
+    state = GameState()
+    state.guns = 1
+    initial_health = state.health
+    remaining, escaped, msg = combat_round(state, 1, "fight")
+    assert remaining == 0
+    assert not escaped
+    assert state.health == initial_health  # no cops left to shoot
+
+
+def test_combat_round_fight_no_guns():
+    state = GameState()
+    state.guns = 0
+    remaining, escaped, msg = combat_round(state, 3, "fight")
+    assert remaining == 3  # nothing happened
+    assert not escaped
+
+
+def test_combat_round_run_success():
+    # With 1 cop, escape chance is high — find a seed that escapes
+    state = GameState()
+    escaped_once = False
+    for seed in range(100):
+        random.seed(seed)
+        state = GameState()
+        remaining, escaped, msg = combat_round(state, 1, "run")
+        if escaped:
+            escaped_once = True
+            assert remaining == 1  # cops don't disappear
+            break
+    assert escaped_once
+
+
+def test_combat_round_run_fail():
+    # With many cops, escape chance is low — find a seed that fails
+    failed_once = False
+    for seed in range(100):
+        random.seed(seed)
+        state = GameState()
+        initial_health = state.health
+        remaining, escaped, msg = combat_round(state, 8, "run")
+        if not escaped:
+            failed_once = True
+            assert state.health < initial_health
+            break
+    assert failed_once

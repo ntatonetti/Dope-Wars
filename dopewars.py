@@ -130,3 +130,26 @@ def roll_events(state: GameState, prices: dict[str, int]) -> list[tuple[str, str
         events.append(("coat_offer", "Would you like to buy a trench coat for $200?", 200))
 
     return events
+
+
+def combat_round(state: GameState, num_cops: int, choice: str) -> tuple[int, bool, str]:
+    """Process one round of combat. Returns (remaining_cops, escaped, message)."""
+    if choice == "run":
+        escape_chance = max(0.2, min(0.9, 1.0 - num_cops * 0.1))
+        if random.random() < escape_chance:
+            return num_cops, True, "You escaped!"
+        damage = num_cops * random.randint(3, 7)
+        state.health = max(0, state.health - damage)
+        return num_cops, False, f"You couldn't escape! They hit you for {damage} damage."
+
+    if choice == "fight":
+        if state.guns <= 0:
+            return num_cops, False, "You don't have any guns!"
+        num_cops -= 1
+        if num_cops > 0:
+            damage = num_cops * random.randint(3, 7)
+            state.health = max(0, state.health - damage)
+            return num_cops, False, f"You killed a cop! {num_cops} remaining. They hit you for {damage} damage."
+        return num_cops, False, "You killed the last cop!"
+
+    return num_cops, False, ""
