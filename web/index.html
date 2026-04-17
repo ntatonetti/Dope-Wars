@@ -212,9 +212,26 @@ body::after {
 .toast.fade-out { opacity: 0; }
 
 #buy-modal .modal { max-width: 300px; }
+
+body.modal-active #market,
+body.modal-active #actions,
+body.modal-active .panel {
+  pointer-events: none;
+  opacity: 0.3;
+}
   </style>
 </head>
 <body>
+  <!-- Title screen -->
+  <div id="title-modal" class="modal-overlay open">
+    <div class="modal" style="text-align: center;">
+      <h2 style="font-size: 20px; margin-bottom: 8px;">DOPE WARS</h2>
+      <p>Buy low. Sell high. Don't get killed.</p>
+      <p style="margin-top: 12px; color: var(--dim);">30 days to make your fortune</p>
+      <button class="btn" id="btn-start" style="margin-top: 16px;">START</button>
+    </div>
+  </div>
+
   <!-- Header -->
   <div id="header">
     <div class="header-row">
@@ -597,6 +614,7 @@ body::after {
       document.getElementById('buy-amount').max = maxQty;
       document.getElementById('buy-error').textContent = '';
       document.getElementById('buy-modal').classList.add('open');
+      lockUI();
       document.getElementById('buy-amount').focus();
     }
 
@@ -611,6 +629,7 @@ body::after {
       document.getElementById('sell-amount').max = have;
       document.getElementById('sell-error').textContent = '';
       document.getElementById('sell-modal').classList.add('open');
+      lockUI();
       document.getElementById('sell-amount').focus();
     }
 
@@ -626,12 +645,14 @@ body::after {
         return;
       }
       document.getElementById('buy-modal').classList.remove('open');
+      unlockUI();
       showToast(`Bought ${qty} ${activeBuyGood}.`);
       render();
     });
 
     document.getElementById('btn-buy-cancel').addEventListener('click', () => {
       document.getElementById('buy-modal').classList.remove('open');
+      unlockUI();
     });
 
     document.getElementById('btn-sell-confirm').addEventListener('click', () => {
@@ -647,12 +668,14 @@ body::after {
       }
       const revenue = prices[activeSellGood] * qty;
       document.getElementById('sell-modal').classList.remove('open');
+      unlockUI();
       showToast(`Sold ${qty} ${activeSellGood} for ${formatMoney(revenue)}.`);
       render();
     });
 
     document.getElementById('btn-sell-cancel').addEventListener('click', () => {
       document.getElementById('sell-modal').classList.remove('open');
+      unlockUI();
     });
 
     // --- Action Panels ---
@@ -767,16 +790,19 @@ body::after {
         if (state.cash >= 400) {
           document.getElementById('offer-text').textContent = ev.message;
           document.getElementById('offer-modal').classList.add('open');
+          lockUI();
           document.getElementById('btn-offer-yes').onclick = () => {
             state.cash -= 400;
             state.guns += 1;
             document.getElementById('offer-modal').classList.remove('open');
+            unlockUI();
             showToast('You bought a gun!');
             render();
             processNextEvent();
           };
           document.getElementById('btn-offer-no').onclick = () => {
             document.getElementById('offer-modal').classList.remove('open');
+            unlockUI();
             processNextEvent();
           };
           return;
@@ -789,16 +815,19 @@ body::after {
         if (state.cash >= 200) {
           document.getElementById('offer-text').textContent = ev.message;
           document.getElementById('offer-modal').classList.add('open');
+          lockUI();
           document.getElementById('btn-offer-yes').onclick = () => {
             state.cash -= 200;
             state.capacity += 10;
             document.getElementById('offer-modal').classList.remove('open');
+            unlockUI();
             showToast('Trench coat! +10 carrying capacity.');
             render();
             processNextEvent();
           };
           document.getElementById('btn-offer-no').onclick = () => {
             document.getElementById('offer-modal').classList.remove('open');
+            unlockUI();
             processNextEvent();
           };
           return;
@@ -819,6 +848,7 @@ body::after {
       log.innerHTML = '';
       updateCombatUI();
       modal.classList.add('open');
+      lockUI();
     }
 
     function updateCombatUI() {
@@ -864,6 +894,7 @@ body::after {
 
     document.getElementById('btn-combat-done').addEventListener('click', () => {
       document.getElementById('combat-modal').classList.remove('open');
+      unlockUI();
       render();
       processNextEvent();
     });
@@ -883,10 +914,12 @@ body::after {
         `  ${'─'.repeat(20)}\n` +
         `  Score: ${formatMoney(score)}`;
       document.getElementById('gameover-modal').classList.add('open');
+      lockUI();
     }
 
     document.getElementById('btn-play-again').addEventListener('click', () => {
       document.getElementById('gameover-modal').classList.remove('open');
+      unlockUI();
       state = createState();
       prices = generatePrices();
       priceHighlights = {};
@@ -894,9 +927,18 @@ body::after {
       render();
     });
 
+    // --- UI Lock ---
+    function lockUI() { document.body.classList.add('modal-active'); }
+    function unlockUI() { document.body.classList.remove('modal-active'); }
+
     // --- Boot ---
     let state = createState();
     let prices = generatePrices();
+
+    document.getElementById('btn-start').addEventListener('click', () => {
+      document.getElementById('title-modal').classList.remove('open');
+      unlockUI();
+    });
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');

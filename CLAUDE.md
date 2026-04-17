@@ -16,6 +16,14 @@ This is a plaibox sandbox project. The `.plaibox.yaml` file is project metadata 
 python3 dopewars.py
 ```
 
+### PWA (web version)
+
+```bash
+cd web && python3 -m http.server 8000
+```
+
+Open `http://localhost:8000` on your phone (same network) or desktop browser. On mobile, use "Add to Home Screen" to install as an app.
+
 ## Testing
 
 ```bash
