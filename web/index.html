@@ -62,6 +62,130 @@
       return prices;
     }
 
+    // --- Game Logic ---
+    function buy(state, good, qty, price) {
+      const cost = price * qty;
+      if (cost > state.cash) return "You can't afford that!";
+      const carried = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+      if (carried + qty > state.capacity) return "You can't carry that much!";
+      state.cash -= cost;
+      state.inventory[good] += qty;
+      return null;
+    }
+
+    function sell(state, good, qty, price) {
+      if (state.inventory[good] < qty) return "You don't have that many!";
+      state.cash += price * qty;
+      state.inventory[good] -= qty;
+      return null;
+    }
+
+    function deposit(state, amount) {
+      if (amount > state.cash) return "You don't have that much cash!";
+      state.cash -= amount;
+      state.bank += amount;
+      return null;
+    }
+
+    function withdraw(state, amount) {
+      if (amount > state.bank) return "You don't have that much in the bank!";
+      state.bank -= amount;
+      state.cash += amount;
+      return null;
+    }
+
+    function repayDebt(state, amount) {
+      if (amount > state.cash) return "You don't have that much cash!";
+      amount = Math.min(amount, state.debt);
+      state.cash -= amount;
+      state.debt -= amount;
+      return null;
+    }
+
+    function applyInterest(state) {
+      state.debt = Math.floor(state.debt * 1.10);
+    }
+
+    function rollEvents(state, prices) {
+      const events = [];
+
+      if (Math.random() < 0.15) {
+        const good = ['Weed', 'Speed', 'Ludes'][Math.floor(Math.random() * 3)];
+        const multiplier = 4 + Math.floor(Math.random() * 5);
+        prices[good] = GOODS[good][1] * multiplier;
+        events.push({ type: 'price_spike', message: `Cops made a bust! ${good} prices skyrocket!` });
+      }
+
+      if (Math.random() < 0.15) {
+        const good = ['Cocaine', 'Heroin', 'Acid'][Math.floor(Math.random() * 3)];
+        const divisor = 4 + Math.floor(Math.random() * 5);
+        prices[good] = Math.floor(GOODS[good][0] / divisor);
+        events.push({ type: 'price_crash', message: `${good} prices have bottomed out!` });
+      }
+
+      if (Math.random() < 0.10) {
+        const good = GOOD_NAMES[Math.floor(Math.random() * GOOD_NAMES.length)];
+        let amount = 2 + Math.floor(Math.random() * 5);
+        const carried = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+        const space = state.capacity - carried;
+        amount = Math.min(amount, space);
+        if (amount > 0) {
+          state.inventory[good] += amount;
+          events.push({ type: 'find_goods', message: `You find ${amount} units of ${good} on the ground!` });
+        }
+      }
+
+      if (Math.random() < 0.10 && state.cash > 0) {
+        const lost = 1 + Math.floor(Math.random() * Math.max(1, Math.floor(state.cash / 3)));
+        state.cash -= lost;
+        events.push({ type: 'mugger', message: `A mugger attacks! You lose $${lost.toLocaleString()}!` });
+      }
+
+      if (Math.random() < 0.15) {
+        const minCops = 1 + Math.floor(state.day / 10);
+        const maxCops = Math.max(minCops, Math.min(3 + Math.floor(state.day / 5), 8));
+        const numCops = minCops + Math.floor(Math.random() * (maxCops - minCops + 1));
+        events.push({ type: 'cops', message: `Officer Hardass and ${numCops} cops are chasing you!`, data: numCops });
+      }
+
+      if (Math.random() < 0.10) {
+        events.push({ type: 'gun_offer', message: 'Would you like to buy a gun for $400?', data: 400 });
+      }
+
+      if (Math.random() < 0.10) {
+        events.push({ type: 'coat_offer', message: 'Would you like to buy a trench coat for $200?', data: 200 });
+      }
+
+      return events;
+    }
+
+    function combatRound(state, numCops, choice) {
+      if (choice === 'run') {
+        const escapeChance = Math.max(0.2, Math.min(0.9, 1.0 - numCops * 0.1));
+        if (Math.random() < escapeChance) {
+          return { remaining: numCops, escaped: true, message: 'You escaped!' };
+        }
+        const damage = numCops * (3 + Math.floor(Math.random() * 5));
+        state.health = Math.max(0, state.health - damage);
+        return { remaining: numCops, escaped: false, message: `You couldn't escape! They hit you for ${damage} damage.` };
+      }
+
+      if (choice === 'fight') {
+        if (state.guns <= 0) {
+          return { remaining: numCops, escaped: false, message: "You don't have any guns!" };
+        }
+        numCops -= 1;
+        if (numCops > 0) {
+          const damage = numCops * (3 + Math.floor(Math.random() * 5));
+          state.health = Math.max(0, state.health - damage);
+          return { remaining: numCops, escaped: false, message: `You killed a cop! ${numCops} remaining. They hit you for ${damage} damage.` };
+        }
+        return { remaining: 0, escaped: false, message: 'You killed the last cop!' };
+      }
+
+      return { remaining: numCops, escaped: false, message: '' };
+    }
+
     // --- Service Worker ---
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
