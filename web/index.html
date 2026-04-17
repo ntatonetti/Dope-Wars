@@ -655,6 +655,91 @@ body::after {
       document.getElementById('sell-modal').classList.remove('open');
     });
 
+    // --- Action Panels ---
+    function togglePanel(name) {
+      openPanel = openPanel === name ? null : name;
+      render();
+    }
+
+    document.getElementById('btn-jet').addEventListener('click', () => {
+      togglePanel('jet');
+      if (openPanel === 'jet') {
+        const dest = document.getElementById('jet-destinations');
+        dest.innerHTML = '';
+        const destinations = LOCATIONS.filter(l => l !== state.currentLocation);
+        for (const loc of destinations) {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.style.display = 'block';
+          btn.style.width = '100%';
+          btn.style.marginBottom = '4px';
+          btn.textContent = loc;
+          btn.addEventListener('click', () => travel(loc));
+          dest.appendChild(btn);
+        }
+      }
+    });
+
+    function travel(location) {
+      state.currentLocation = location;
+      state.day += 1;
+      applyInterest(state);
+      prices = generatePrices();
+      priceHighlights = {};
+      openPanel = null;
+
+      const events = rollEvents(state, prices);
+
+      // Track price highlights
+      for (const ev of events) {
+        if (ev.type === 'price_spike') {
+          const good = GOOD_NAMES.find(g => ev.message.includes(g));
+          if (good) priceHighlights[good] = 'spike';
+        }
+        if (ev.type === 'price_crash') {
+          const good = GOOD_NAMES.find(g => ev.message.includes(g));
+          if (good) priceHighlights[good] = 'crash';
+        }
+      }
+
+      render();
+      processEvents(events);
+    }
+
+    document.getElementById('btn-bank').addEventListener('click', () => togglePanel('bank'));
+
+    document.getElementById('btn-deposit').addEventListener('click', () => {
+      const amt = parseInt(document.getElementById('bank-amount').value);
+      if (!amt || amt <= 0) { showToast('Enter a number.'); return; }
+      const err = deposit(state, amt);
+      if (err) { showToast(err); return; }
+      document.getElementById('bank-amount').value = '';
+      showToast(`Deposited ${formatMoney(amt)}.`);
+      render();
+    });
+
+    document.getElementById('btn-withdraw').addEventListener('click', () => {
+      const amt = parseInt(document.getElementById('bank-amount').value);
+      if (!amt || amt <= 0) { showToast('Enter a number.'); return; }
+      const err = withdraw(state, amt);
+      if (err) { showToast(err); return; }
+      document.getElementById('bank-amount').value = '';
+      showToast(`Withdrew ${formatMoney(amt)}.`);
+      render();
+    });
+
+    document.getElementById('btn-shark').addEventListener('click', () => togglePanel('shark'));
+
+    document.getElementById('btn-repay').addEventListener('click', () => {
+      const amt = parseInt(document.getElementById('shark-amount').value);
+      if (!amt || amt <= 0) { showToast('Enter a number.'); return; }
+      const err = repayDebt(state, amt);
+      if (err) { showToast(err); return; }
+      document.getElementById('shark-amount').value = '';
+      showToast(`Repaid ${formatMoney(amt)}. Remaining: ${formatMoney(state.debt)}`);
+      render();
+    });
+
     // --- Boot ---
     let state = createState();
     let prices = generatePrices();
