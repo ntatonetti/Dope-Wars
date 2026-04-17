@@ -496,14 +496,82 @@ body::after {
       return { remaining: numCops, escaped: false, message: '' };
     }
 
-    // --- Service Worker ---
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
+    // --- UI State ---
+    let priceHighlights = {};
+    let openPanel = null;
+
+    function formatMoney(n) {
+      return '$' + n.toLocaleString();
+    }
+
+    function render() {
+      // Header
+      document.getElementById('h-day').textContent = `Day ${state.day}/30`;
+      document.getElementById('h-location').textContent = state.currentLocation;
+      document.getElementById('h-cash').textContent = `Cash: ${formatMoney(state.cash)}`;
+      document.getElementById('h-debt').textContent = `Debt: ${formatMoney(state.debt)}`;
+      document.getElementById('h-bank').textContent = `Bank: ${formatMoney(state.bank)}`;
+      document.getElementById('h-health').textContent = `HP: ${state.health}`;
+      document.getElementById('h-guns').textContent = `Guns: ${state.guns}`;
+      const carried = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+      document.getElementById('h-space').textContent = `Space: ${state.capacity - carried}`;
+
+      // Market
+      const tbody = document.getElementById('market-body');
+      tbody.innerHTML = '';
+      for (const good of GOOD_NAMES) {
+        const tr = document.createElement('tr');
+        if (priceHighlights[good] === 'spike') tr.className = 'spike';
+        if (priceHighlights[good] === 'crash') tr.className = 'crash';
+
+        const tdName = document.createElement('td');
+        tdName.textContent = good;
+        tr.appendChild(tdName);
+
+        const tdPrice = document.createElement('td');
+        tdPrice.textContent = formatMoney(prices[good]);
+        tr.appendChild(tdPrice);
+
+        const tdOwn = document.createElement('td');
+        tdOwn.textContent = state.inventory[good];
+        tr.appendChild(tdOwn);
+
+        const tdBtns = document.createElement('td');
+        tdBtns.className = 'qty-cell';
+
+        const buyBtn = document.createElement('button');
+        buyBtn.className = 'btn';
+        buyBtn.textContent = 'B';
+        buyBtn.addEventListener('click', () => openBuyModal(good));
+        tdBtns.appendChild(buyBtn);
+
+        if (state.inventory[good] > 0) {
+          const sellBtn = document.createElement('button');
+          sellBtn.className = 'btn';
+          sellBtn.textContent = 'S';
+          sellBtn.addEventListener('click', () => openSellModal(good));
+          tdBtns.appendChild(sellBtn);
+        }
+
+        tr.appendChild(tdBtns);
+        tbody.appendChild(tr);
+      }
+
+      // Panels
+      document.getElementById('jet-panel').className = openPanel === 'jet' ? 'panel open' : 'panel';
+      document.getElementById('bank-panel').className = openPanel === 'bank' ? 'panel open' : 'panel';
+      document.getElementById('shark-panel').className = openPanel === 'shark' ? 'panel open' : 'panel';
     }
 
     // --- Boot ---
     let state = createState();
     let prices = generatePrices();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    render();
   </script>
 </body>
 </html>
