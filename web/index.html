@@ -23,9 +23,54 @@
 <body>
   <div id="app">Dope Wars loading...</div>
   <script>
+    // --- Constants ---
+    const LOCATIONS = ['Bronx', 'Ghetto', 'Central Park', 'Manhattan', 'Coney Island', 'Brooklyn'];
+
+    const GOODS = {
+      Cocaine: [15000, 30000],
+      Heroin:  [5000, 14000],
+      Acid:    [1000, 4500],
+      Weed:    [300, 900],
+      Speed:   [70, 250],
+      Ludes:   [10, 60],
+    };
+
+    const GOOD_NAMES = Object.keys(GOODS);
+
+    // --- State ---
+    function createState() {
+      const inventory = {};
+      for (const g of GOOD_NAMES) inventory[g] = 0;
+      return {
+        cash: 2000,
+        debt: 5500,
+        bank: 0,
+        inventory,
+        capacity: 100,
+        currentLocation: LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)],
+        day: 1,
+        guns: 0,
+        health: 100,
+      };
+    }
+
+    function generatePrices() {
+      const prices = {};
+      for (const [good, [lo, hi]] of Object.entries(GOODS)) {
+        prices[good] = lo + Math.floor(Math.random() * (hi - lo + 1));
+      }
+      return prices;
+    }
+
+    // --- Service Worker ---
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
+
+    // --- Boot ---
+    let state = createState();
+    let prices = generatePrices();
+    document.getElementById('app').textContent = `Cash: $${state.cash} | Location: ${state.currentLocation}`;
   </script>
 </body>
 </html>
