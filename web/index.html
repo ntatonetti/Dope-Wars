@@ -740,6 +740,160 @@ body::after {
       render();
     });
 
+    // --- Event Processing ---
+    let pendingEvents = [];
+    let combatCops = 0;
+
+    function processEvents(events) {
+      pendingEvents = [...events];
+      processNextEvent();
+    }
+
+    function processNextEvent() {
+      if (pendingEvents.length === 0) {
+        checkGameOver();
+        return;
+      }
+
+      const ev = pendingEvents.shift();
+
+      if (ev.type === 'cops') {
+        combatCops = ev.data;
+        openCombatModal();
+        return;
+      }
+
+      if (ev.type === 'gun_offer') {
+        if (state.cash >= 400) {
+          document.getElementById('offer-text').textContent = ev.message;
+          document.getElementById('offer-modal').classList.add('open');
+          document.getElementById('btn-offer-yes').onclick = () => {
+            state.cash -= 400;
+            state.guns += 1;
+            document.getElementById('offer-modal').classList.remove('open');
+            showToast('You bought a gun!');
+            render();
+            processNextEvent();
+          };
+          document.getElementById('btn-offer-no').onclick = () => {
+            document.getElementById('offer-modal').classList.remove('open');
+            processNextEvent();
+          };
+          return;
+        } else {
+          showToast("Can't afford a gun ($400).");
+        }
+      }
+
+      if (ev.type === 'coat_offer') {
+        if (state.cash >= 200) {
+          document.getElementById('offer-text').textContent = ev.message;
+          document.getElementById('offer-modal').classList.add('open');
+          document.getElementById('btn-offer-yes').onclick = () => {
+            state.cash -= 200;
+            state.capacity += 10;
+            document.getElementById('offer-modal').classList.remove('open');
+            showToast('Trench coat! +10 carrying capacity.');
+            render();
+            processNextEvent();
+          };
+          document.getElementById('btn-offer-no').onclick = () => {
+            document.getElementById('offer-modal').classList.remove('open');
+            processNextEvent();
+          };
+          return;
+        } else {
+          showToast("Can't afford a trench coat ($200).");
+        }
+      }
+
+      // Passive events: mugger, find_goods, price_spike, price_crash
+      showToast(ev.message, 3000);
+      setTimeout(() => processNextEvent(), 1500);
+    }
+
+    // --- Combat ---
+    function openCombatModal() {
+      const modal = document.getElementById('combat-modal');
+      const log = document.getElementById('combat-log');
+      log.innerHTML = '';
+      updateCombatUI();
+      modal.classList.add('open');
+    }
+
+    function updateCombatUI() {
+      document.getElementById('combat-info').textContent = `Cops: ${combatCops} | HP: ${state.health}`;
+      const fightBtn = document.getElementById('btn-fight');
+      const runBtn = document.getElementById('btn-run');
+      const doneBtn = document.getElementById('btn-combat-done');
+      const combatOver = combatCops <= 0 || state.health <= 0;
+
+      fightBtn.style.display = combatOver ? 'none' : '';
+      runBtn.style.display = combatOver ? 'none' : '';
+      doneBtn.style.display = combatOver ? '' : 'none';
+      fightBtn.disabled = state.guns <= 0;
+    }
+
+    function addCombatLog(msg) {
+      const log = document.getElementById('combat-log');
+      const p = document.createElement('p');
+      p.textContent = '> ' + msg;
+      p.style.margin = '4px 0';
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    document.getElementById('btn-fight').addEventListener('click', () => {
+      const result = combatRound(state, combatCops, 'fight');
+      combatCops = result.remaining;
+      addCombatLog(result.message);
+      updateCombatUI();
+      render();
+    });
+
+    document.getElementById('btn-run').addEventListener('click', () => {
+      const result = combatRound(state, combatCops, 'run');
+      combatCops = result.remaining;
+      addCombatLog(result.message);
+      if (result.escaped) {
+        combatCops = 0;
+      }
+      updateCombatUI();
+      render();
+    });
+
+    document.getElementById('btn-combat-done').addEventListener('click', () => {
+      document.getElementById('combat-modal').classList.remove('open');
+      render();
+      processNextEvent();
+    });
+
+    // --- Game Over ---
+    function checkGameOver() {
+      if (state.health > 0 && state.day <= 30) return;
+
+      const score = state.cash + state.bank - state.debt;
+      const title = state.health <= 0 ? "YOU'RE DEAD!" : "GAME OVER — 30 days are up!";
+
+      document.getElementById('gameover-title').textContent = title;
+      document.getElementById('gameover-score').textContent =
+        `  Cash:  ${formatMoney(state.cash)}\n` +
+        `  Bank:  ${formatMoney(state.bank)}\n` +
+        `  Debt: -${formatMoney(state.debt)}\n` +
+        `  ${'─'.repeat(20)}\n` +
+        `  Score: ${formatMoney(score)}`;
+      document.getElementById('gameover-modal').classList.add('open');
+    }
+
+    document.getElementById('btn-play-again').addEventListener('click', () => {
+      document.getElementById('gameover-modal').classList.remove('open');
+      state = createState();
+      prices = generatePrices();
+      priceHighlights = {};
+      openPanel = null;
+      render();
+    });
+
     // --- Boot ---
     let state = createState();
     let prices = generatePrices();
