@@ -8,20 +8,330 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>Dope Wars</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #000;
-      color: #33ff33;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 14px;
-      min-height: 100vh;
-      min-height: 100dvh;
-    }
-    #app { padding: 8px; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --green: #33ff33;
+  --dim: #1a8c1a;
+  --bg: #000;
+  --red: #ff4444;
+  --bright-green: #66ff66;
+}
+
+body {
+  background: var(--bg);
+  color: var(--green);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* CRT scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0.15) 0px,
+    rgba(0,0,0,0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+#header {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--dim);
+  padding: 8px;
+  z-index: 10;
+  text-shadow: 0 0 5px var(--green);
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.header-row span {
+  white-space: nowrap;
+}
+
+#market {
+  padding: 8px;
+}
+
+#market table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+#market th {
+  text-align: left;
+  border-bottom: 1px solid var(--dim);
+  padding: 4px 2px;
+  color: var(--dim);
+}
+
+#market td {
+  padding: 6px 2px;
+  border-bottom: 1px solid #0a3a0a;
+}
+
+#market tr.spike td { color: var(--red); }
+#market tr.crash td { color: var(--bright-green); }
+
+#market .qty-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn {
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  text-shadow: 0 0 3px var(--green);
+}
+
+.btn:active {
+  background: var(--green);
+  color: var(--bg);
+}
+
+.btn:disabled {
+  border-color: var(--dim);
+  color: var(--dim);
+  text-shadow: none;
+}
+
+#actions {
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#actions .btn {
+  flex: 1;
+  min-width: 80px;
+}
+
+.panel {
+  padding: 8px;
+  border: 1px solid var(--dim);
+  margin: 8px;
+  display: none;
+}
+
+.panel.open { display: block; }
+
+.panel-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.panel-row input {
+  background: var(--bg);
+  color: var(--green);
+  border: 1px solid var(--green);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 6px;
+  width: 100px;
+  min-height: 44px;
+}
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal {
+  border: 1px solid var(--green);
+  padding: 16px;
+  max-width: 360px;
+  width: 100%;
+  background: var(--bg);
+  text-shadow: 0 0 5px var(--green);
+}
+
+.modal h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.modal .btn {
+  margin-top: 8px;
+  margin-right: 8px;
+}
+
+.toast {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  z-index: 200;
+  transition: opacity 0.3s;
+  text-shadow: 0 0 5px var(--green);
+  background: var(--bg);
+  border-bottom: 1px solid var(--green);
+}
+
+.toast.fade-out { opacity: 0; }
+
+#buy-modal .modal { max-width: 300px; }
   </style>
 </head>
 <body>
-  <div id="app">Dope Wars loading...</div>
+  <!-- Header -->
+  <div id="header">
+    <div class="header-row">
+      <span id="h-day">Day 1/30</span>
+      <span id="h-location">Bronx</span>
+    </div>
+    <div class="header-row">
+      <span id="h-cash">Cash: $2,000</span>
+      <span id="h-debt">Debt: $5,500</span>
+      <span id="h-bank">Bank: $0</span>
+    </div>
+    <div class="header-row">
+      <span id="h-health">HP: 100</span>
+      <span id="h-guns">Guns: 0</span>
+      <span id="h-space">Space: 100</span>
+    </div>
+  </div>
+
+  <!-- Market -->
+  <div id="market">
+    <table>
+      <thead>
+        <tr><th>Good</th><th>Price</th><th>Own</th><th></th></tr>
+      </thead>
+      <tbody id="market-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Action buttons -->
+  <div id="actions">
+    <button class="btn" id="btn-jet">JET</button>
+    <button class="btn" id="btn-bank">BANK</button>
+    <button class="btn" id="btn-shark">SHARK</button>
+  </div>
+
+  <!-- Jet panel (inline expand) -->
+  <div id="jet-panel" class="panel">
+    <div id="jet-destinations"></div>
+  </div>
+
+  <!-- Bank panel (inline expand) -->
+  <div id="bank-panel" class="panel">
+    <div class="panel-row">
+      <input type="number" id="bank-amount" min="1" placeholder="Amount">
+      <button class="btn" id="btn-deposit">DEP</button>
+      <button class="btn" id="btn-withdraw">WD</button>
+    </div>
+  </div>
+
+  <!-- Loan shark panel (inline expand) -->
+  <div id="shark-panel" class="panel">
+    <div class="panel-row">
+      <input type="number" id="shark-amount" min="1" placeholder="Amount">
+      <button class="btn" id="btn-repay">REPAY</button>
+    </div>
+  </div>
+
+  <!-- Buy modal -->
+  <div id="buy-modal" class="modal-overlay">
+    <div class="modal">
+      <h2 id="buy-title">Buy Ludes</h2>
+      <p id="buy-info">Price: $50 | Max: 20</p>
+      <div class="panel-row">
+        <input type="number" id="buy-amount" min="1">
+        <button class="btn" id="btn-buy-confirm">BUY</button>
+        <button class="btn" id="btn-buy-cancel">X</button>
+      </div>
+      <p id="buy-error"></p>
+    </div>
+  </div>
+
+  <!-- Sell modal -->
+  <div id="sell-modal" class="modal-overlay">
+    <div class="modal">
+      <h2 id="sell-title">Sell Ludes</h2>
+      <p id="sell-info">Price: $50 | Have: 10</p>
+      <div class="panel-row">
+        <input type="number" id="sell-amount" min="1">
+        <button class="btn" id="btn-sell-confirm">SELL</button>
+        <button class="btn" id="btn-sell-cancel">X</button>
+      </div>
+      <p id="sell-error"></p>
+    </div>
+  </div>
+
+  <!-- Event offer modal (gun/coat) -->
+  <div id="offer-modal" class="modal-overlay">
+    <div class="modal">
+      <p id="offer-text"></p>
+      <button class="btn" id="btn-offer-yes">YES</button>
+      <button class="btn" id="btn-offer-no">NO</button>
+    </div>
+  </div>
+
+  <!-- Combat modal -->
+  <div id="combat-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>COPS!</h2>
+      <p id="combat-info">Cops: 3 | HP: 100</p>
+      <div id="combat-log"></div>
+      <div id="combat-buttons">
+        <button class="btn" id="btn-fight">FIGHT</button>
+        <button class="btn" id="btn-run">RUN</button>
+      </div>
+      <button class="btn" id="btn-combat-done" style="display:none;">OK</button>
+    </div>
+  </div>
+
+  <!-- Game over modal -->
+  <div id="gameover-modal" class="modal-overlay">
+    <div class="modal">
+      <h2 id="gameover-title">GAME OVER</h2>
+      <pre id="gameover-score"></pre>
+      <button class="btn" id="btn-play-again">PLAY AGAIN</button>
+    </div>
+  </div>
+
   <script>
     // --- Constants ---
     const LOCATIONS = ['Bronx', 'Ghetto', 'Central Park', 'Manhattan', 'Coney Island', 'Brooklyn'];
@@ -194,7 +504,6 @@
     // --- Boot ---
     let state = createState();
     let prices = generatePrices();
-    document.getElementById('app').textContent = `Cash: $${state.cash} | Location: ${state.currentLocation}`;
   </script>
 </body>
 </html>
