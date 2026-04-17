@@ -563,6 +563,98 @@ body::after {
       document.getElementById('shark-panel').className = openPanel === 'shark' ? 'panel open' : 'panel';
     }
 
+    // --- Toast Notifications ---
+    function showToast(message, duration = 2000) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // --- Buy/Sell Modals ---
+    let activeBuyGood = null;
+    let activeSellGood = null;
+
+    function openBuyModal(good) {
+      activeBuyGood = good;
+      const price = prices[good];
+      const maxAfford = price > 0 ? Math.floor(state.cash / price) : 0;
+      const carried = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+      const maxCarry = state.capacity - carried;
+      const maxQty = Math.min(maxAfford, maxCarry);
+
+      document.getElementById('buy-title').textContent = `Buy ${good}`;
+      document.getElementById('buy-info').textContent = `Price: ${formatMoney(price)} | Max: ${maxQty}`;
+      document.getElementById('buy-amount').value = '';
+      document.getElementById('buy-amount').max = maxQty;
+      document.getElementById('buy-error').textContent = '';
+      document.getElementById('buy-modal').classList.add('open');
+      document.getElementById('buy-amount').focus();
+    }
+
+    function openSellModal(good) {
+      activeSellGood = good;
+      const price = prices[good];
+      const have = state.inventory[good];
+
+      document.getElementById('sell-title').textContent = `Sell ${good}`;
+      document.getElementById('sell-info').textContent = `Price: ${formatMoney(price)} | Have: ${have}`;
+      document.getElementById('sell-amount').value = '';
+      document.getElementById('sell-amount').max = have;
+      document.getElementById('sell-error').textContent = '';
+      document.getElementById('sell-modal').classList.add('open');
+      document.getElementById('sell-amount').focus();
+    }
+
+    document.getElementById('btn-buy-confirm').addEventListener('click', () => {
+      const qty = parseInt(document.getElementById('buy-amount').value);
+      if (!qty || qty <= 0) {
+        document.getElementById('buy-error').textContent = 'Enter a number.';
+        return;
+      }
+      const err = buy(state, activeBuyGood, qty, prices[activeBuyGood]);
+      if (err) {
+        document.getElementById('buy-error').textContent = err;
+        return;
+      }
+      document.getElementById('buy-modal').classList.remove('open');
+      showToast(`Bought ${qty} ${activeBuyGood}.`);
+      render();
+    });
+
+    document.getElementById('btn-buy-cancel').addEventListener('click', () => {
+      document.getElementById('buy-modal').classList.remove('open');
+    });
+
+    document.getElementById('btn-sell-confirm').addEventListener('click', () => {
+      const qty = parseInt(document.getElementById('sell-amount').value);
+      if (!qty || qty <= 0) {
+        document.getElementById('sell-error').textContent = 'Enter a number.';
+        return;
+      }
+      const err = sell(state, activeSellGood, qty, prices[activeSellGood]);
+      if (err) {
+        document.getElementById('sell-error').textContent = err;
+        return;
+      }
+      const revenue = prices[activeSellGood] * qty;
+      document.getElementById('sell-modal').classList.remove('open');
+      showToast(`Sold ${qty} ${activeSellGood} for ${formatMoney(revenue)}.`);
+      render();
+    });
+
+    document.getElementById('btn-sell-cancel').addEventListener('click', () => {
+      document.getElementById('sell-modal').classList.remove('open');
+    });
+
     // --- Boot ---
     let state = createState();
     let prices = generatePrices();
